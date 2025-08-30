@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="icons">
+        <file>提示.png</file>
+        <file>询问.png</file>
+    </qresource>
+</RCC>
