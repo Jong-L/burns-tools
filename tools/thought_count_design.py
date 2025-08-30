@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QLabel,
 #将tools目录加入到sys.path中
 import sys
 sys.path.append('tools')
-import tool_icons_rc
+import tools.tool_icons_rc
 
 class Ui_Form(object):
     def setupUi(self, Form):

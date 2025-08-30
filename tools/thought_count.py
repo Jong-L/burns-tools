@@ -14,12 +14,7 @@ from matplotlib import rcParams
 
 
 
-
-
-from thought_count_design import Ui_Form
-if __name__ == '__main__':
-    # 添加项目根目录到 Python 路径
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools.thought_count_design import Ui_Form
 from components.dlg_info_design import Ui_Dialog
 from tools.dlg_calendar import CalendarDialog
 
@@ -103,9 +98,3 @@ class ThoughtCounterWindow(QWidget,Ui_Form):
         # 通知主窗口清理
         if self.main_window and hasattr(self.main_window, 'close_tool'):
             self.main_window.close_tool("消极思维计数器")
-
-if __name__ == '__main__':
-    app = QApplication([])
-    window = ThoughtCounterWindow(main_window=None)
-    window.show()
-    app.exec()

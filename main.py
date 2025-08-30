@@ -10,15 +10,12 @@ from PySide6.QtGui import QPalette,QColor
 from main_window import MainWindow
 import colors
 
+
 if __name__=="__main__":
     app=QApplication()
     #app.setStyle("Fusion")
     app.setApplicationName("伯恩斯情绪工具集")
     app.setApplicationVersion("1.0.0")
-    #应用程序属性
-    # app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    # app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-    palette=QPalette()
     
     main_window=MainWindow()
     main_window.show()

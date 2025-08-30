@@ -57,7 +57,7 @@
         <string/>
        </property>
        <property name="pixmap">
-        <pixmap resource="comp_icons.qrc">:/icons/提示.png</pixmap>
+        <pixmap resource="comp_icons.qrc">:/icons/info.png</pixmap>
        </property>
        <property name="scaledContents">
         <bool>false</bool>
@@ -136,7 +136,6 @@ QDialogButtonBox QPushButton:hover {
   </layout>
  </widget>
  <resources>
-  <include location="comp_icons.qrc"/>
   <include location="comp_icons.qrc"/>
  </resources>
  <connections>

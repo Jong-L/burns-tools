@@ -10,12 +10,9 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QWidget, QMessageBox,
 from PySide6.QtGui import QCloseEvent, QFont
 from PySide6.QtCore import Qt, Signal
 
-if __name__ == "__main__":
-    # 添加项目根目录到 Python 路径
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from thought_journal_design import Ui_Form  # pyright: ignore[reportImplicitRelativeImport]
-from log_editor import EditLogWindow3Col,EditLogWindow6Col    # pyright: ignore[reportImplicitRelativeImport]
+from tools.thought_journal_design import Ui_Form  # pyright: ignore[reportImplicitRelativeImport]
+from tools.log_editor import EditLogWindow3Col,EditLogWindow6Col    # pyright: ignore[reportImplicitRelativeImport]
 
 from components.dlg_info_design import Ui_Dialog as Ui_DialogInfo
 from components.dlg_confirm_design import Ui_Dialog as Ui_DialogConfirm
@@ -301,6 +298,11 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
 
     def load_data(self):
         """加载日志数据"""
+        #文件不存在则创建
+        if not os.path.exists('data/消极思维日志.json'):
+            with open('data/消极思维日志.json', 'w', encoding='utf-8') as f:
+                json.dump([], f, ensure_ascii=False, indent=4)
+        #处理空文件
         if os.path.getsize('data/消极思维日志.json') <= 0:
             self.logs = []
             return
@@ -508,9 +510,4 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
         # 通知主窗口清理
         if self.main_window and hasattr(self.main_window, 'close_tool'):
             self.main_window.close_tool("消极思维日志")
-if __name__ == "__main__":
-    import sys
-    app = QApplication(sys.argv)
-    window = ThoughtJournalWindow(None)
-    window.show()
-    sys.exit(app.exec())
+

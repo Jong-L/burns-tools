@@ -545,8 +545,8 @@ class EditLogWindow6Col(QWidget):
                 border: 1px solid #bdc3c7;
                 border-radius: 6px;
                 background-color: white;
-                min-width: 160px;
-                max-width: 160px;
+                min-width: 180px;
+                max-width: 180px;
             }
         """)
         distortion_layout.addWidget(self.distortion_list_widget)
@@ -672,7 +672,7 @@ class EditLogWindow6Col(QWidget):
         else:
             text= f'<font color="#39b0ff"><b>{distortion_item[0]}</b></font>'
         item_widget = DistortionItemWidget(text, lambda: self.distortion_list_widget.takeItem(self.distortion_list_widget.row(item)))
-        item.setSizeHint(item_widget.sizeHint())
+        item.setSizeHint(item_widget.sizeHint()+QSize(0, 50))
         self.distortions_list.append(distortion_item)
         self.distortion_list_widget.addItem(item)
         self.distortion_list_widget.setItemWidget(item, item_widget)
