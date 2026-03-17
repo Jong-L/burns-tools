@@ -62,8 +62,8 @@
    "value": "D:/schoolTour/anything/projects/burns_tools"
   },
   {
-   "optionDest": "pathex",
-   "value": "D:/schoolTour/anything/projects/burns_tools/tools"
+   "optionDest": "datas",
+   "value": "D:/schoolTour/anything/projects/burns_tools/data;data/"
   }
  ],
  "nonPyinstallerOptions": {

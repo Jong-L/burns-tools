@@ -1,18 +1,13 @@
-
-import os
-import sys
-import json
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
 
-from PySide6.QtWidgets import (QWidget,QMessageBox, QDialog)
-from PySide6.QtCore import (QDate)
+from PySide6.QtWidgets import QWidget, QMessageBox, QDialog, QFrame, QVBoxLayout, QLabel
+from PySide6.QtCore import QDate
 import matplotlib.dates as mdates
 from matplotlib import rcParams
 from matplotlib.ticker import MultipleLocator
-import matplotlib.pyplot as plt
-import numpy as np
 
+from services.local_store import LocalStore
 from tools.thought_count_design import Ui_Form
 from components.dlg_info_design import Ui_Dialog
 from tools.dlg_calendar import CalendarDialog
@@ -24,12 +19,14 @@ rcParams['axes.unicode_minus'] = False
 
 
 class ThoughtCounterPlotWindow(QWidget):
-    def __init__(self,count_data={},today=""):
+    def __init__(self, count_data: dict[str, int] | None = None, today: str = ""):
         super().__init__()
-        self.count_data=count_data
-        self.today=datetime.strptime(today,"%Y-%m-%d")
-        self.ui=ThoughtCounterPlotUi()
+        self.count_data = count_data or {}
+        self.today = datetime.strptime(today, "%Y-%m-%d")
+        self.ui = ThoughtCounterPlotUi()
         self.ui.setupUi(self)
+        self.setObjectName("thoughtCounterPlotWindow")
+        self._apply_styles()
         self.ui.comboBox.currentIndexChanged.connect(self.update_plot)
 
         #提前得到时间列表
@@ -94,16 +91,17 @@ class ThoughtCounterPlotWindow(QWidget):
         """配置图表基本样式"""
         self.ui.mplWidget.figure.patch.set_facecolor('#f8f9fa')
         self.ui.mplWidget.axes.set_facecolor('#ffffff')
+        self.ui.mplWidget.figure.patch.set_facecolor('#f4f8f2')
 
     def _plot_main_line(self, time_list, count_list):
         """绘制主线条"""
         self.ui.mplWidget.axes.plot(time_list, count_list,
                                 linewidth=3,
-                                color='#2E86AB',
-                                alpha=0.8,
+                                color='#4f9c61',
+                                alpha=0.88,
                                 marker='o',
                                 markersize=6,
-                                markerfacecolor='#A23B72',
+                                markerfacecolor='#dff0de',
                                 markeredgecolor='#ffffff',
                                 markeredgewidth=2,
                                 zorder=3)
@@ -112,7 +110,7 @@ class ThoughtCounterPlotWindow(QWidget):
         """添加填充区域"""
         self.ui.mplWidget.axes.fill_between(time_list, count_list,
                                         alpha=0.3,
-                                        color='#2E86AB',
+                                        color='#7fc58c',
                                         zorder=1)
 
     def _set_plot_title(self, index):
@@ -127,7 +125,7 @@ class ThoughtCounterPlotWindow(QWidget):
         self.ui.mplWidget.axes.set_title(f"计数统计 - {titles.get(index)}",
                                         fontsize=16,
                                         fontweight='bold',
-                                        color='#2c3e50',
+                                        color='#35543d',
                                         pad=20)
 
     def _set_axis_labels(self):
@@ -135,11 +133,11 @@ class ThoughtCounterPlotWindow(QWidget):
         self.ui.mplWidget.axes.set_xlabel("日期",
                                         fontsize=12,
                                         fontweight='bold',
-                                        color='#34495e')
+                                        color='#48624e')
         self.ui.mplWidget.axes.set_ylabel("消极思维出现次数",
                                         fontsize=12,
                                         fontweight='bold',
-                                        color='#34495e')
+                                        color='#48624e')
 
     def _configure_y_axis(self, count_list):
         """配置Y轴"""
@@ -163,20 +161,20 @@ class ThoughtCounterPlotWindow(QWidget):
         """美化坐标轴"""
         self.ui.mplWidget.axes.tick_params(axis='x',
                                         rotation=20,
-                                        colors='#7f8c8d',
+                                        colors='#768878',
                                         labelsize=10)
         self.ui.mplWidget.axes.tick_params(axis='y',
-                                        colors='#7f8c8d',
+                                        colors='#768878',
                                         labelsize=10)
         
         self.ui.mplWidget.axes.grid(True,
                                 alpha=0.3,
                                 linestyle='--',
-                                color='#bdc3c7',
+                                color='#c8d8c3',
                                 zorder=0)
         
         for spine in self.ui.mplWidget.axes.spines.values():
-            spine.set_edgecolor('#bdc3c7')
+            spine.set_edgecolor('#c5d6c0')
             spine.set_linewidth(1.5)
 
     def _add_data_annotations(self, time_list, count_list):
@@ -189,11 +187,11 @@ class ThoughtCounterPlotWindow(QWidget):
                                             xytext=(0, 10),
                                             ha='center',
                                             fontsize=9,
-                                            color='#e74c3c',
+                                            color='#416247',
                                             fontweight='bold',
                                             bbox=dict(boxstyle="round,pad=0.3",
-                                                    facecolor='#ffffff',
-                                                    edgecolor='#e74c3c',
+                                                    facecolor='#f9fcf8',
+                                                    edgecolor='#8ec59a',
                                                     alpha=0.8))
 
     def _finalize_plot(self):
@@ -202,16 +200,47 @@ class ThoughtCounterPlotWindow(QWidget):
         self.ui.mplWidget.figure.tight_layout()
         self.ui.mplWidget.canvas.draw()
 
+    def _apply_styles(self) -> None:
+        self.setStyleSheet(
+            """
+            QWidget#thoughtCounterPlotWindow {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #eef4ee,
+                    stop: 0.55 #f7f6ef,
+                    stop: 1 #e8f0e7
+                );
+                font-family: "Microsoft YaHei";
+                color: #2b3f30;
+            }
+            QComboBox {
+                min-width: 120px;
+                padding: 8px 12px;
+                border-radius: 12px;
+                border: 1px solid #bfd2ba;
+                background-color: #fbfdf9;
+                color: #33503a;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 24px;
+            }
+            """
+        )
 
 
-class ThoughtCounterWindow(QWidget,Ui_Form):
-    def __init__(self,main_window):
+class ThoughtCounterWindow(QWidget, Ui_Form):
+    def __init__(self, main_window, storage: LocalStore):
         super().__init__()
-        self.main_window=main_window
-        self.count_data={}# 数据字典
-        self.current_count=0
-        self.today=self.date=QDate.currentDate().toString("yyyy-MM-dd")
+        self.main_window = main_window
+        self.storage = storage
+        self.count_data: dict[str, int] = {}
+        self.current_count = 0
+        self.today = self.date = QDate.currentDate().toString("yyyy-MM-dd")
         self.setupUi(self)
+        self.setObjectName("thoughtCounterWindow")
+        self._build_green_shell()
+        self._apply_styles()
         self.load_data()
 
         self.pushButton_4.clicked.connect(self.decrease_count)
@@ -219,6 +248,145 @@ class ThoughtCounterWindow(QWidget,Ui_Form):
         self.pushButton_5.clicked.connect(self.set_time)
         self.pushButton_2.clicked.connect(self.save_count)
         self.pushButton.clicked.connect(self.show_statistics)
+
+    def _build_green_shell(self) -> None:
+        self.label.setParent(None)
+        self.verticalLayout_2.insertWidget(0, self._create_header_card())
+
+        self.frame.setObjectName("counterPanel")
+        self.pushButton_5.setObjectName("dateButton")
+        self.pushButton_2.setObjectName("saveButton")
+        self.pushButton.setObjectName("statsButton")
+        self.pushButton_3.setObjectName("plusButton")
+        self.pushButton_4.setObjectName("minusButton")
+        self.label_2.setObjectName("countLabel")
+
+    def _create_header_card(self) -> QFrame:
+        header_card = QFrame(self)
+        header_card.setObjectName("heroCard")
+        header_layout = QVBoxLayout(header_card)
+        header_layout.setContentsMargins(22, 16, 22, 16)
+        header_layout.setSpacing(4)
+
+        eyebrow = QLabel("Gentle Counter")
+        eyebrow.setObjectName("heroEyebrow")
+        header_layout.addWidget(eyebrow)
+
+        title = QLabel("消极思维计数器")
+        title.setObjectName("heroTitle")
+        header_layout.addWidget(title)
+
+        subtitle = QLabel("轻量记录今天出现的次数，用趋势代替自责。")
+        subtitle.setObjectName("heroSubtitle")
+        subtitle.setWordWrap(True)
+        header_layout.addWidget(subtitle)
+        return header_card
+
+    def _apply_styles(self) -> None:
+        self.setStyleSheet(
+            """
+            QWidget#thoughtCounterWindow {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #eef4ee,
+                    stop: 0.45 #f6f5ef,
+                    stop: 1 #e6efe7
+                );
+                font-family: "Microsoft YaHei";
+                color: #24362a;
+            }
+            QFrame#heroCard {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #5ba76c,
+                    stop: 1 #408f57
+                );
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                border-radius: 18px;
+            }
+            QLabel#heroEyebrow {
+                color: rgba(245, 255, 245, 0.78);
+                font-size: 10px;
+                font-weight: 600;
+                letter-spacing: 1px;
+            }
+            QLabel#heroTitle {
+                color: white;
+                font-size: 22px;
+                font-weight: 700;
+            }
+            QLabel#heroSubtitle {
+                color: rgba(246, 255, 246, 0.9);
+                font-size: 12px;
+            }
+            QFrame#counterPanel {
+                background-color: rgba(255, 255, 255, 0.86);
+                border: 1px solid #d4e4cf;
+                border-radius: 22px;
+                padding: 22px;
+            }
+            QPushButton#dateButton {
+                background-color: #eef5ea;
+                color: #44614b;
+                border: 1px solid #c7d9c1;
+                border-radius: 14px;
+                padding: 10px 12px;
+                text-align: left;
+            }
+            QPushButton#dateButton:hover {
+                background-color: #e4efe1;
+            }
+            QLabel#countLabel {
+                color: #4c9b5f;
+                font-size: 44px;
+                font-weight: 700;
+            }
+            QPushButton#minusButton, QPushButton#plusButton {
+                min-width: 56px;
+                min-height: 56px;
+                border-radius: 28px;
+                border: none;
+                color: white;
+                font-size: 22px;
+                font-weight: 700;
+            }
+            QPushButton#minusButton {
+                background-color: #c96f6b;
+            }
+            QPushButton#minusButton:hover {
+                background-color: #b85f5b;
+            }
+            QPushButton#plusButton {
+                background-color: #56a368;
+            }
+            QPushButton#plusButton:hover {
+                background-color: #4a955c;
+            }
+            QPushButton#saveButton, QPushButton#statsButton {
+                min-height: 44px;
+                border-radius: 14px;
+                font-size: 13px;
+                font-weight: 600;
+                border: none;
+                padding: 10px 18px;
+            }
+            QPushButton#saveButton {
+                background-color: #4f9c61;
+                color: white;
+            }
+            QPushButton#saveButton:hover {
+                background-color: #458c56;
+            }
+            QPushButton#statsButton {
+                background-color: #edf5ea;
+                color: #44614b;
+                border: 1px solid #c7d9c1;
+            }
+            QPushButton#statsButton:hover {
+                background-color: #e5efe0;
+            }
+            """
+        )
 
     def set_time(self):
         dlg=CalendarDialog()
@@ -236,38 +404,12 @@ class ThoughtCounterWindow(QWidget,Ui_Form):
 
 
     def load_data(self):
-        DATA_DIR = "data"
-        COUNT_FILE = os.path.join(DATA_DIR, "消极思维计数.json")
-        
         try:
-            # 确保数据目录存在
-            os.makedirs(DATA_DIR, exist_ok=True)
-            
-            # 初始化或加载计数数据
-            if not os.path.exists(COUNT_FILE) or os.path.getsize(COUNT_FILE) == 0:
-                self.count_data = {}
-                self._save_count_data(COUNT_FILE)
-            else:
-                with open(COUNT_FILE, "r", encoding='utf-8') as f:
-                    self.count_data = json.load(f)
-            
-            # 加载今日数据
+            self.count_data = self.storage.get_thought_counts()
             self.current_count = self.count_data.get(self.today, 0)
             self.label_2.setText(str(self.current_count))
-            
-        except json.JSONDecodeError as e:
-            QMessageBox.warning(self, "错误", f"JSON数据格式错误: {e}")
-        except PermissionError as e:
-            QMessageBox.warning(self, "错误", f"文件权限错误: {e}")
-        except OSError as e:
-            QMessageBox.warning(self, "错误", f"文件操作错误: {e}")
         except Exception as e:
             QMessageBox.warning(self, "错误", f"加载数据失败: {e}")
-
-    def _save_count_data(self, file_path):
-        """首次运行时的辅助方法：保存计数数据到文件"""
-        with open(file_path, "w", encoding='utf-8') as f:
-            json.dump(self.count_data, f, ensure_ascii=False, indent=2)
 
 
     def increase_count(self):
@@ -281,11 +423,9 @@ class ThoughtCounterWindow(QWidget,Ui_Form):
     
     def save_count(self):
         """ 保存数据"""
-        self.count_data[self.date]=self.current_count
+        self.count_data[self.date] = self.current_count
         try:
-            #写入文件
-            with open("data/消极思维计数.json", "w", encoding="utf-8") as f:
-                json.dump(self.count_data, f, ensure_ascii=False, indent=2)
+            self.storage.save_thought_count(self.date, self.current_count)
         except Exception as e:
             QMessageBox.warning(self, "错误", f"保存失败: {e}")
         else:
@@ -297,11 +437,12 @@ class ThoughtCounterWindow(QWidget,Ui_Form):
 
     def show_statistics(self):
         """ 打开数据统计窗口 """
-        self.statistics_window=ThoughtCounterPlotWindow(count_data=self.count_data,today=self.today)
+        self.statistics_window = ThoughtCounterPlotWindow(count_data=self.count_data, today=self.today)
         self.statistics_window.show()
         
 
     def closeEvent(self, event):
         # 通知主窗口清理
         if self.main_window and hasattr(self.main_window, 'close_tool'):
-            self.main_window.close_tool("消极思维计数器")
+            self.main_window.close_tool("thought_counter")
+        super().closeEvent(event)

@@ -1,16 +1,15 @@
 import sys
-import os
-import json
 import time
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, Optional, Any
 
 
 from PySide6.QtWidgets import (QApplication, QButtonGroup, QWidget, QMessageBox, QDialog, 
                                QVBoxLayout,QHBoxLayout, QLabel, QGroupBox, QRadioButton, 
                                QDialogButtonBox, QPushButton,QFrame)
-from PySide6.QtGui import QCloseEvent, QFont
+from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Signal
 
+from services.local_store import LocalStore
 
 from tools.thought_journal_design import Ui_Form  # pyright: ignore[reportImplicitRelativeImport]
 from tools.log_editor import EditLogWindow3Col,EditLogWindow6Col    # pyright: ignore[reportImplicitRelativeImport]
@@ -31,9 +30,7 @@ class LogConstants:
     
     THREE_COLUMN_TYPE = "three_column"
     SIX_COLUMN_TYPE = "six_column"
-    
-    LOG_FILE_PATH = 'data/消极思维日志.json'
-    
+
     # UI相关常量
     CONTENT_PREVIEW_LENGTH = 100
     CARD_MIN_WIDTH = 300
@@ -56,6 +53,7 @@ class LogEntryCard(QFrame):
     def __init__(self, log):
         super().__init__()
         self.log=log
+        self.setObjectName("logEntryCard")
         self.setup_ui()
         
     def setup_ui(self):
@@ -77,13 +75,13 @@ class LogEntryCard(QFrame):
         local_time = time.strftime("%Y-%m-%d", time.localtime(timestamp))
         time_label = QLabel(local_time)
         time_label.setFont(QFont("Microsoft YaHei", 9))
-        time_label.setStyleSheet("color: #3498db;")
+        time_label.setStyleSheet("color: #4b7d54;")
         layout_top_label.addWidget(time_label)
         # 模版类型
         template_type=self.log.get("type", "unknown")
         type_label = QLabel(f"📝 {template_type}")
         type_label.setFont(QFont("Microsoft YaHei", 9))
-        type_label.setStyleSheet("color: #3498db;")
+        type_label.setStyleSheet("color: #4b7d54;")
         layout_top_label.addWidget(type_label)
         #是否进行回应
         data=self.log.get("data", {})
@@ -94,10 +92,10 @@ class LogEntryCard(QFrame):
             response_label.setStyleSheet("""
                 QLabel {
                     color: #ffffff;
-                    background-color: #ff6b6b;
+                    background-color: #89b88f;
                     border-radius: 12px;
                     padding: 3px 10px;
-                    border: 1px solid #ff5252;
+                    border: 1px solid #74a87b;
                 }
             """)
             layout_top_label.addWidget(response_label)
@@ -114,7 +112,7 @@ class LogEntryCard(QFrame):
         content_label = QLabel(content)
         content_label.setFont(QFont("Microsoft YaHei", 11))
         content_label.setWordWrap(True)
-        content_label.setStyleSheet("color: #2c3e50;")
+        content_label.setStyleSheet("color: #314635;")
         layout_text.addWidget(content_label)
 
         layout.addLayout(layout_text)
@@ -133,13 +131,13 @@ class LogEntryCard(QFrame):
         #设置卡片样式
         self.setStyleSheet("""
             QFrame {
-                background-color: #ffffff;
-                border: 1px solid #ecf0f1;
-                border-radius: 8px;
+                background-color: rgba(255, 255, 255, 0.92);
+                border: 1px solid #d7e5d3;
+                border-radius: 14px;
             }
             QFrame:hover {
-                border: 1px solid #3498db;
-                background-color: #f8f9fa;
+                border: 1px solid #73ad7d;
+                background-color: #f7fbf5;
             }
             QLabel {
                 background-color: transparent;
@@ -150,14 +148,15 @@ class LogEntryCard(QFrame):
                 background-color: transparent;
             }
             QPushButton {
-                background-color: #e74c3c;
+                background-color: #e7f1e4;
                 border: None;
-                border-radius: 8px;
+                border-radius: 10px;
                 padding: 12px 5px;
-                color: white;
+                color: #4d6752;
+                border: 1px solid #cddfc8;
             }
             QPushButton:hover {
-                background-color: #c0392b;
+                background-color: #dbe8d7;
             }
         """)
 
@@ -276,44 +275,47 @@ class TemplateSelectionDialog(QDialog):
         return LogConstants.THREE_COLUMN_TYPE
 
 class ThoughtJournalWindow(QWidget, Ui_Form):
-    def __init__(self,main_window):
+    def __init__(self, main_window, storage: LocalStore):
         """
         初始化思维日志窗口
         设置界面布局、数据存储和事件连接
         """
         super(ThoughtJournalWindow, self).__init__()
         #self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        self.main_window=main_window
+        self.main_window = main_window
+        self.storage = storage
         # 初始化日志数据列表，存储字典类型数据，字典中键为字符串，值为字符串或字符串列表
-        self.logs: list[dict[str, str|list[str]]]=[]#日志数据
+        self.logs: list[dict[str, Any]] = []
         #当前操作的日志时间戳
-        self.timestamp=0
+        self.timestamp = 0.0
         # 初始化编辑窗口为None，同时只允许一个编辑窗口存在
         self.edit_window: EditLogWindow3Col|None = None
         # 设置UI界面
         self.setupUi(Form=self)
+        self.setObjectName("thoughtJournalWindow")
         # 创建日志布局管理器
         self.logs_layout_text = QVBoxLayout()
+        self.logs_layout_text.setContentsMargins(6, 6, 6, 6)
+        self.logs_layout_text.setSpacing(12)
         # 将布局应用到滚动区域的内容部件
         self.scrollAreaWidgetContents.setLayout(self.logs_layout_text)
         #滚动条样式
+        self._apply_styles()
         self.scrollArea.setStyleSheet("""
                 QScrollArea{
-        border: 0px solid;
-        border-right-width: 1px;
-        border-right-color: #dcdbdc;
-        background-color: #f5f5f7;
+        border: none;
+        background-color: transparent;
         }
         QScrollBar:vertical {
         border: none;
-        background: #f5f5f7;
-        width: 10px;
-        margin: 0px 0 0px 0;
+        background: transparent;
+        width: 12px;
+        margin: 8px 4px 8px 0;
         }
         QScrollBar::handle:vertical {
-        background: Gainsboro;
-        min-height: 20px;
-        border-radius: 5px;
+        background: rgba(110, 156, 116, 0.6);
+        min-height: 28px;
+        border-radius: 6px;
         border: none;
         }
         QScrollBar::add-line:vertical {
@@ -342,25 +344,60 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
         # 连接添加按钮的点击事件到add_log方法
         _=self.pushButtonAdd.clicked.connect(self.add_log)
 
+    def _apply_styles(self) -> None:
+        self.setStyleSheet(
+            """
+            QWidget#thoughtJournalWindow {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #eef4ee,
+                    stop: 0.45 #f6f5ef,
+                    stop: 1 #e6efe7
+                );
+                font-family: "Microsoft YaHei";
+                color: #24362a;
+            }
+            QLabel#label {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #5ba76c,
+                    stop: 1 #408f57
+                );
+                color: white;
+                border-radius: 18px;
+                padding: 14px 18px;
+                font-size: 22px;
+                font-weight: 700;
+                margin-bottom: 6px;
+            }
+            QWidget#widget {
+                background-color: rgba(255, 255, 255, 0.74);
+                border: 1px solid #d8e5d4;
+                border-radius: 20px;
+            }
+            QPushButton#pushButtonAdd {
+                background-color: #4f9c61;
+                color: white;
+                border: none;
+                border-radius: 14px;
+                padding: 14px 18px;
+                min-width: 118px;
+            }
+            QPushButton#pushButtonAdd:hover {
+                background-color: #458c56;
+            }
+            """
+        )
+
 
     def load_data(self):
         """加载日志数据"""
-        #文件不存在则创建
-        if not os.path.exists(LogConstants.LOG_FILE_PATH):
-            with open(LogConstants.LOG_FILE_PATH, 'w', encoding='utf-8') as f:
-                json.dump([], f, ensure_ascii=False, indent=4)
-        #处理空文件
-        if os.path.getsize(LogConstants.LOG_FILE_PATH) <= 0:
-            self.logs = []
-            return
         try:
-            with open(LogConstants.LOG_FILE_PATH, 'r', encoding='utf-8') as f:
-                self.logs = json.load(f)
+            self.logs = self.storage.get_journal_logs()
         except Exception as e:
             QMessageBox.warning(self, "提示", f"加载日志数据失败：{e}")
             self.logs = []
-        else:
-            self.update_log_card_list()
+        self.update_log_card_list()
 
     def update_log_card_list(self):
         """更新日志卡片列表"""
@@ -396,12 +433,12 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
         cancel_button=ui.buttonBox.button(QDialogButtonBox.Cancel)
         cancel_button.setText("取消")
         if dlg.exec() == QDialog.Accepted:
-            for log in self.logs:
-                if log.get("timestamp") == timestamp:
-                    self.logs.remove(log)
-                    break
-            self.update_log_card_list()
-            self.save_log_data()
+            try:
+                self.storage.delete_journal_log(timestamp)
+            except Exception as e:
+                QMessageBox.warning(self, "提示", f"删除日志失败：{e}")
+                return
+            self.load_data()
 
     def open_edit_window(self, type: str, log: Optional[Dict[str, Any]] = None) -> None:
         """打开编辑窗口"""
@@ -459,104 +496,27 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
             # 编辑窗口
             self.open_edit_window(template)
 
-    def save_log_data(self):
-        """点击删除后将日志数据写入文件"""
+    def _save_log(self, log_type: str, data: Dict[str, Any]) -> None:
+        timestamp = self.timestamp or time.time()
         try:
-            with open(LogConstants.LOG_FILE_PATH, 'w', encoding='utf-8') as f:
-                json.dump(self.logs, f, ensure_ascii=False,indent=4)
+            self.storage.upsert_journal_log(log_type=log_type, timestamp=timestamp, data=data)
         except Exception as e:
-            QMessageBox.warning(self, "提示", f"保存日志数据失败：{e}")
-
-    def insert_log_in_order(self, log: Dict[str, Any]) -> None:
-        """
-        按规则插入日志：未回应日志排在已回应日志前面，每组内部按时间升序排列
-        
-        Args:
-            log: 要插入的日志字典，包含timestamp和data字段
-        """
-        if not self._is_valid_log(log):
+            QMessageBox.warning(self, "提示", f"保存日志失败：{e}")
             return
-            
-        # 分离已回应和未回应的日志
-        unresponded_logs, responded_logs = self._separate_logs_by_response_status()
-        
-        # 根据新日志的回应状态插入到对应列表
-        if self._has_rational_response(log):
-            self._insert_log_sorted(responded_logs, log)
-        else:
-            self._insert_log_sorted(unresponded_logs, log)
-        
-        # 合并两部分日志
-        self.logs = unresponded_logs + responded_logs
-    
-    def _is_valid_log(self, log: Dict[str, Any]) -> bool:
-        """验证日志格式是否正确"""
-        if not isinstance(log, dict):
-            return False
-        if "timestamp" not in log or "data" not in log:
-            return False
-        if not isinstance(log.get("data"), dict):
-            return False
-        return True
-    
-    def _has_rational_response(self, log: Dict[str, Any]) -> bool:
-        """检查日志是否有理性回应"""
-        rational_response = log.get("data", {}).get(LogConstants.RATIONAL_RESPONSE_KEY, "")
-        return bool(rational_response and rational_response.strip())
-    
-    def _separate_logs_by_response_status(self) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """将日志列表分离为已回应和未回应两部分"""
-        unresponded_logs = []
-        responded_logs = []
-        
-        for log in self.logs:
-            if self._has_rational_response(log):
-                responded_logs.append(log)
-            else:
-                unresponded_logs.append(log)
-        
-        return unresponded_logs, responded_logs
-    
-    def _insert_log_sorted(self, log_list: List[Dict[str, Any]], new_log: Dict[str, Any]) -> None:
-        """
-        将新日志按时间戳升序插入到指定列表中
-        
-        Args:
-            log_list: 目标日志列表
-            new_log: 要插入的新日志
-        """
-        new_timestamp = new_log.get("timestamp", 0)
-        
-        # 使用二分查找优化插入位置
-        insert_position = self._find_insert_position(log_list, new_timestamp)
-        log_list.insert(insert_position, new_log)
-    
-    def _find_insert_position(self, log_list: List[Dict[str, Any]], timestamp: float) -> int:
-        """
-        使用二分查找找到插入位置，保持时间戳升序
-        
-        Args:
-            log_list: 日志列表
-            timestamp: 要插入的时间戳
-            
-        Returns:
-            插入位置的索引
-        """
-        if not log_list:
-            return 0
-            
-        left, right = 0, len(log_list)
-        
-        while left < right:
-            mid = (left + right) // 2
-            mid_timestamp = log_list[mid].get("timestamp", 0)
-            
-            if timestamp < mid_timestamp:
-                right = mid
-            else:
-                left = mid + 1
-        
-        return left
+
+        self.timestamp = 0
+        self.load_data()
+        self._show_save_success_dialog()
+
+    def _show_save_success_dialog(self) -> None:
+        dlg = QDialog(self.edit_window)
+        ui = Ui_DialogInfo()
+        ui.setupUi(dlg)
+        ui.label_text.setText("保存成功")
+        ok_button = ui.buttonBox.button(QDialogButtonBox.StandardButton.Ok)
+        if ok_button is not None:
+            ok_button.setText("确定")
+        dlg.exec()
         
     def save_log_3col(self):
         """在编辑窗口编辑后保存日志"""
@@ -568,46 +528,7 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
             LogConstants.COGNITIVE_DISTORTION_KEY: distortions,
             LogConstants.RATIONAL_RESPONSE_KEY: rational_response
             }
-    
-        if self.timestamp!=0:#如果打开的是创建过的日志
-            # 使用列表推导式找到匹配的日志
-            matching_logs = [log for log in self.logs if log.get("timestamp") == self.timestamp]
-            if matching_logs:
-                matching_log = matching_logs[0]
-                pre_response = matching_log.get("data").get(LogConstants.RATIONAL_RESPONSE_KEY, "")
-
-            matching_log["data"]=data
-
-            #如果回应状态改变，需要将日志插入到改变后状态对应的列表中并保持时间升序
-            if pre_response!=rational_response:
-                #删除原日志
-                self.logs.remove(matching_log)
-                #插入新日志
-                self.insert_log_in_order(matching_log)
-        
-        else:#新日志
-            timestamp=time.time()
-            temp_dict = {
-                "type": LogConstants.THREE_COLUMN_TYPE,
-                "timestamp":timestamp,
-                "data": data
-            }
-            self.insert_log_in_order(temp_dict)
-
-        with open(LogConstants.LOG_FILE_PATH, 'w', encoding='utf-8') as f:
-            json.dump(self.logs, f, ensure_ascii=False,indent=4)
-        dlg=QDialog(self.edit_window)
-        ui=Ui_DialogInfo()
-        ui.setupUi(dlg)
-        ui.label_text.setText("保存成功")
-        ok_button=ui.buttonBox.button(QDialogButtonBox.StandardButton.Ok)
-        ok_button.setText("确定")
-        dlg.exec()
-        #更新日志卡片列表
-        self.update_log_card_list()
-
-        #重置时间戳
-        self.timestamp=0
+        self._save_log(LogConstants.THREE_COLUMN_TYPE, data)
 
     def save_log_6col(self):
         """在编辑窗口编辑后保存六列日志"""
@@ -625,43 +546,7 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
         LogConstants.RATIONAL_RESPONSE_KEY: rational_response,
         LogConstants.RESULT_KEY: result
         }
-
-        if self.timestamp!=0:#如果打开的是创建过的日志
-            # 使用列表推导式找到匹配的日志
-            matching_logs = [log for log in self.logs if log.get("timestamp") == self.timestamp]
-            if matching_logs:
-                matching_log = matching_logs[0]
-                pre_response = matching_log.get("data").get(LogConstants.RATIONAL_RESPONSE_KEY, "")
-
-            matching_log["data"]=data
-
-            #如果回应状态改变，需要将日志插入到改变后状态对应的列表中并保持时间升序
-            if pre_response!=rational_response:
-                #删除原日志
-                self.logs.remove(matching_log)
-                #插入新日志
-                self.insert_log_in_order(matching_log)
-
-        else:#新日志
-            timestamp=time.time()
-            temp_dict = {
-                "type": LogConstants.SIX_COLUMN_TYPE,
-                "timestamp":timestamp,
-                "data": data
-            }
-            self.insert_log_in_order(temp_dict)
-        
-        #保存日志到文件
-        with open(LogConstants.LOG_FILE_PATH, 'w', encoding='utf-8') as f:
-            json.dump(self.logs, f, ensure_ascii=False, indent=4)
-        dlg=QDialog(self.edit_window)
-        ui=Ui_DialogInfo()
-        ui.setupUi(dlg)
-        ui.label_text.setText("保存成功")
-        dlg.exec()
-        self.update_log_card_list()
-        #重置时间戳
-        self.timestamp=0
+        self._save_log(LogConstants.SIX_COLUMN_TYPE, data)
 
     def close_edit_window(self):
         """关闭编辑窗口"""
@@ -673,5 +558,6 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
     def closeEvent(self, event):
         # 通知主窗口清理
         if self.main_window and hasattr(self.main_window, 'close_tool'):
-            self.main_window.close_tool("消极思维日志")
+            self.main_window.close_tool("thought_journal")
+        super().closeEvent(event)
 

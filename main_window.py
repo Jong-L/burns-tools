@@ -1,84 +1,164 @@
-import json
-import sys
-#将需要导入的模块的路径添加到sys.path中
-sys.path.append("components")
-sys.path.append("tools")
-
-from PySide6.QtWidgets import (QMainWindow, QApplication)
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QResizeEvent, QShowEvent
+from PySide6.QtWidgets import QMainWindow, QWidget
 
-from main_window_design import Ui_MainWindow
 from components.tool_card import ToolCard
-from tools.thought_count import ThoughtCounterWindow
-from tools.thought_journal import ThoughtJournalWindow
-from tools.daily_activity_plan import DailyActivityPlanWindow
+from main_window_design import Ui_MainWindow
+from services.local_store import LocalStore
+from services.tool_registry import TOOL_MAP, load_tool_definitions
 
-class MainWindow(QMainWindow,Ui_MainWindow):
+
+class MainWindow(QMainWindow, Ui_MainWindow):
+    CARD_MIN_WIDTH = 300
+    CARD_HORIZONTAL_SPACING = 16
+
     def __init__(self):
         super(MainWindow, self).__init__()
-        self.tool_windows=set()#保存已经打开的工具窗口
+        self.storage = LocalStore()
+        self.tool_windows: dict[str, QWidget] = {}
+        self.tool_cards: list[ToolCard] = []
+        self.tool_configs = load_tool_definitions()
+        self.current_columns = 0
+
         self.setupUi(self)
         self.setGeometry(280, 50, 1020, 760)
-        #self.setWindowFlags(Qt.FramelessWindowHint)
-        self.daily_plan_window=None
+        self._apply_styles()
         self.load_tools()
 
-    # 加载工具
-    def load_tools(self):
-        """ 加载工具 """
-        try:
-            with open("data/tools.json", "r", encoding="utf-8") as f:
-                data = json.load(f)
+    def _apply_styles(self) -> None:
+        self.centralwidget.setObjectName("mainCentralWidget")
+        self.scrollAreaWidgetContents.setObjectName("toolGridContainer")
 
-            tools = data["tools"]
-            for i,tool in enumerate(tools):
-                tool_card = ToolCard(tool["name"], tool["description"])
-                tool_card.clicked.connect(self.open_tool)
-                tool_card.setCursor(Qt.PointingHandCursor)
-                row = i // 4
-                column = i % 4
-                self.gridLayout.addWidget(tool_card, row, column)
+        self.label.setText("\u4f2f\u6069\u65af\u60c5\u7eea\u5de5\u5177\u96c6")
+        self.label_2.setText("\u9009\u62e9\u4e00\u4e2a\u5de5\u5177\uff0c\u5f00\u59cb\u4eca\u5929\u7684\u81ea\u52a9\u7ec3\u4e60")
 
-        except FileNotFoundError:
-            print("tools.json not found")
+        self.setStyleSheet(
+            """
+            QWidget#mainCentralWidget {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #eef4ee,
+                    stop: 0.45 #f6f5ef,
+                    stop: 1 #e6efe7
+                );
+                font-family: "Microsoft YaHei";
+                color: #24362a;
+            }
+            QLabel#label {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #5ba76c,
+                    stop: 1 #408f57
+                );
+                color: white;
+                border-radius: 22px;
+                padding: 18px 22px;
+                font-size: 28px;
+                font-weight: 700;
+                margin: 6px 12px 0 12px;
+            }
+            QLabel#label_2 {
+                color: #667c69;
+                font-size: 13px;
+                background-color: rgba(255, 255, 255, 0.7);
+                border: 1px solid #dbe8d7;
+                border-radius: 14px;
+                padding: 10px 16px;
+                margin: 0 24px 4px 24px;
+            }
+            QScrollArea#scrollArea {
+                border: none;
+                background: transparent;
+            }
+            QWidget#toolGridContainer {
+                background-color: rgba(255, 255, 255, 0.72);
+                border: 1px solid #d9e6d5;
+                border-radius: 22px;
+            }
+            QScrollBar:vertical {
+                width: 12px;
+                border: none;
+                background: transparent;
+                margin: 8px 4px 8px 0;
+            }
+            QScrollBar::handle:vertical {
+                min-height: 28px;
+                border-radius: 6px;
+                background: rgba(110, 156, 116, 0.6);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: transparent;
+            }
+            """
+        )
 
-    # 打开工具窗口
-    def open_tool(self,tool_name):
-        print("Opening tool..."+tool_name)
-        if tool_name =="消极思维日志":
-            if tool_name not in self.tool_windows:
-                self.tool_windows.add(tool_name)
-                self.journal_window = ThoughtJournalWindow(main_window=self)
-                #self.journal_window.destroyed.connect(lambda: self.close_tool(tool_name))#使用lambda表达式传递参数
-                self.journal_window.show()
-            else:
-                #将窗口置于顶层
-                self.journal_window.activateWindow()
-        elif tool_name =="消极思维计数器":
-            if tool_name not in self.tool_windows:
-                self.tool_windows.add(tool_name)
-                self.counter_window = ThoughtCounterWindow(main_window=self)
-                self.counter_window.show()
-            else:
-                #将窗口置于顶层
-                self.counter_window.activateWindow()
-        elif tool_name =="每日活动计划表":
-            if tool_name not in self.tool_windows:
-                self.tool_windows.add(tool_name)
-                self.daily_plan_window = DailyActivityPlanWindow(main_window=self)
-                self.daily_plan_window.show()
-            else:
-                self.daily_plan_window.activateWindow()
+    def load_tools(self) -> None:
+        """加载工具卡片。"""
+        self.gridLayout.setHorizontalSpacing(self.CARD_HORIZONTAL_SPACING)
+        self.gridLayout.setVerticalSpacing(self.CARD_HORIZONTAL_SPACING)
 
-    def close_tool(self,tool_name):
-        self.tool_windows.discard(tool_name)
-        print("Closed tool..."+tool_name)
-        if tool_name=="消极思维日志":
-            self.journal_window = None
-        elif tool_name=="每日活动计划表":
-            self.daily_plan_window = None
-if __name__ == "__main__":
-    app = QApplication()
-    main_window = MainWindow()
-    main_window.show()
-    app.exec()
+        for tool in self.tool_configs:
+            tool_card = ToolCard(tool.tool_id, tool.name, tool.description)
+            tool_card.clicked.connect(self.open_tool)
+            tool_card.setCursor(Qt.PointingHandCursor)
+            self.tool_cards.append(tool_card)
+
+        self._relayout_tool_cards()
+
+    def _relayout_tool_cards(self) -> None:
+        columns = self._calculate_column_count()
+        if columns == self.current_columns and self.gridLayout.count() == len(self.tool_cards):
+            return
+
+        self.current_columns = columns
+
+        while self.gridLayout.count():
+            item = self.gridLayout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(self.scrollAreaWidgetContents)
+
+        for index, tool_card in enumerate(self.tool_cards):
+            row = index // columns
+            column = index % columns
+            self.gridLayout.addWidget(tool_card, row, column)
+
+        for column in range(columns):
+            self.gridLayout.setColumnStretch(column, 1)
+
+    def _calculate_column_count(self) -> int:
+        available_width = max(1, self.scrollArea.viewport().width())
+        card_full_width = self.CARD_MIN_WIDTH + self.CARD_HORIZONTAL_SPACING
+        columns = max(1, (available_width + self.CARD_HORIZONTAL_SPACING) // card_full_width)
+        return min(columns, max(1, len(self.tool_cards)))
+
+    def open_tool(self, tool_id: str) -> None:
+        existing_window = self.tool_windows.get(tool_id)
+        if existing_window is not None:
+            existing_window.showNormal()
+            existing_window.raise_()
+            existing_window.activateWindow()
+            return
+
+        tool = TOOL_MAP.get(tool_id)
+        if tool is None:
+            return
+
+        window = tool.factory(self)
+        self.tool_windows[tool_id] = window
+        window.destroyed.connect(lambda _=None, name=tool_id: self.close_tool(name))
+        window.show()
+
+    def close_tool(self, tool_id: str) -> None:
+        self.tool_windows.pop(tool_id, None)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._relayout_tool_cards()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self._relayout_tool_cards()
