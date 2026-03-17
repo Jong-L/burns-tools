@@ -60,6 +60,10 @@
   {
    "optionDest": "pathex",
    "value": "D:/schoolTour/anything/projects/burns_tools"
+  },
+  {
+   "optionDest": "pathex",
+   "value": "D:/schoolTour/anything/projects/burns_tools/tools"
   }
  ],
  "nonPyinstallerOptions": {

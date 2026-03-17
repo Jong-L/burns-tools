@@ -8,7 +8,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette,QColor
 
 from main_window import MainWindow
-import colors
 
 
 if __name__=="__main__":

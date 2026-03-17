@@ -11,6 +11,7 @@ from main_window_design import Ui_MainWindow
 from components.tool_card import ToolCard
 from tools.thought_count import ThoughtCounterWindow
 from tools.thought_journal import ThoughtJournalWindow
+from tools.daily_activity_plan import DailyActivityPlanWindow
 
 class MainWindow(QMainWindow,Ui_MainWindow):
     def __init__(self):
@@ -19,6 +20,7 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.setupUi(self)
         self.setGeometry(280, 50, 1020, 760)
         #self.setWindowFlags(Qt.FramelessWindowHint)
+        self.daily_plan_window=None
         self.load_tools()
 
     # 加载工具
@@ -60,12 +62,21 @@ class MainWindow(QMainWindow,Ui_MainWindow):
             else:
                 #将窗口置于顶层
                 self.counter_window.activateWindow()
+        elif tool_name =="每日活动计划表":
+            if tool_name not in self.tool_windows:
+                self.tool_windows.add(tool_name)
+                self.daily_plan_window = DailyActivityPlanWindow(main_window=self)
+                self.daily_plan_window.show()
+            else:
+                self.daily_plan_window.activateWindow()
 
     def close_tool(self,tool_name):
         self.tool_windows.discard(tool_name)
         print("Closed tool..."+tool_name)
         if tool_name=="消极思维日志":
             self.journal_window = None
+        elif tool_name=="每日活动计划表":
+            self.daily_plan_window = None
 if __name__ == "__main__":
     app = QApplication()
     main_window = MainWindow()

@@ -77,3 +77,6 @@ INCLUDEPATH =
 
 #DEFINES = 
 
+FORMS += \
+    tools/thought_count_plot.ui
+

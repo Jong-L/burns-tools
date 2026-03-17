@@ -1,16 +1,23 @@
-import chinese_calendar as calendar
-import datetime
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from datetime import datetime
 
-# 检查某天是否为节假日
-today = datetime.date(2024, 10, 1)
+# 准备数据
+dates = [datetime(2025, 9, 1), datetime(2025, 9, 2), datetime(2025, 9, 3), datetime(2025, 9, 4)]
+values = [0.7, 1.8, 0.9, 2.4]
 
-is_holiday = calendar.is_holiday(today)
-print(is_holiday)  # 返回 True 或 False
+# 创建图形和坐标轴
+fig, ax = plt.subplots()
 
-on_holiday, holiday_name = calendar.get_holiday_detail(today)
-print(on_holiday, holiday_name)  # 返回 True 或 False，节假日名称
+# 绘制数据
+ax.plot(dates, values)
 
-# 获取某天的节气
-end_of_day = datetime.date(2025, 8, 31)
-term = calendar.get_solar_terms(datetime.date(1900,1,31), datetime.date(2099,12,29))
-print(term)  # 输出节气名称，如"处暑"
+# 格式化日期横轴
+ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+
+# 自动调整日期标签使其不重叠
+fig.autofmt_xdate()
+
+# 显示图形
+plt.show()
