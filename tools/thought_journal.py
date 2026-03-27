@@ -10,6 +10,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Signal
 
 from services.local_store import LocalStore
+from services.stylesheet_loader import load_stylesheet
 
 from tools.thought_journal_design import Ui_Form  # pyright: ignore[reportImplicitRelativeImport]
 from tools.log_editor import EditLogWindow3Col,EditLogWindow6Col    # pyright: ignore[reportImplicitRelativeImport]
@@ -61,7 +62,7 @@ class LogEntryCard(QFrame):
         self.setMinimumSize(LogConstants.CARD_MIN_WIDTH, LogConstants.CARD_MIN_HEIGHT)
         self.setMaximumHeight(LogConstants.CARD_MAX_HEIGHT)
         self.setCursor(Qt.PointingHandCursor)
-
+        
         layout=QHBoxLayout(self)
         layout_text = QVBoxLayout()
         layout_text.setContentsMargins(10, 10, 10, 10)
@@ -74,30 +75,22 @@ class LogEntryCard(QFrame):
         timestamp = self.log.get("timestamp", 0)
         local_time = time.strftime("%Y-%m-%d", time.localtime(timestamp))
         time_label = QLabel(local_time)
+        time_label.setProperty("role", "meta")
         time_label.setFont(QFont("Microsoft YaHei", 9))
-        time_label.setStyleSheet("color: #4b7d54;")
         layout_top_label.addWidget(time_label)
         # 模版类型
         template_type=self.log.get("type", "unknown")
         type_label = QLabel(f"📝 {template_type}")
+        type_label.setProperty("role", "meta")
         type_label.setFont(QFont("Microsoft YaHei", 9))
-        type_label.setStyleSheet("color: #4b7d54;")
         layout_top_label.addWidget(type_label)
         #是否进行回应
         data=self.log.get("data", {})
         responseed=data.get(LogConstants.RATIONAL_RESPONSE_KEY,"")
         if responseed=="":
             response_label=QLabel("未回应")
+            response_label.setProperty("role", "status-pill")
             response_label.setFont(QFont("Microsoft YaHei", 9))
-            response_label.setStyleSheet("""
-                QLabel {
-                    color: #ffffff;
-                    background-color: #89b88f;
-                    border-radius: 12px;
-                    padding: 3px 10px;
-                    border: 1px solid #74a87b;
-                }
-            """)
             layout_top_label.addWidget(response_label)
 
 
@@ -110,14 +103,15 @@ class LogEntryCard(QFrame):
         if len(content) > LogConstants.CONTENT_PREVIEW_LENGTH:
             content = content[:LogConstants.CONTENT_PREVIEW_LENGTH] + "..."
         content_label = QLabel(content)
+        content_label.setProperty("role", "content")
         content_label.setFont(QFont("Microsoft YaHei", 11))
         content_label.setWordWrap(True)
-        content_label.setStyleSheet("color: #314635;")
         layout_text.addWidget(content_label)
 
         layout.addLayout(layout_text)
 
         self.del_btn=CustomDelButton("删除", timestamp)
+        self.del_btn.setProperty("variant", "card-delete")
         self.del_btn.setFont(QFont("Microsoft YaHei", 9))
         self.del_btn.setCursor(Qt.PointingHandCursor)
         layout.addWidget(self.del_btn)
@@ -127,38 +121,6 @@ class LogEntryCard(QFrame):
         layout_text.setStretchFactor(content_label, 3)
         layout.setStretchFactor(layout_text, 5)
         layout.setStretchFactor(self.del_btn, 1)
-
-        #设置卡片样式
-        self.setStyleSheet("""
-            QFrame {
-                background-color: rgba(255, 255, 255, 0.92);
-                border: 1px solid #d7e5d3;
-                border-radius: 14px;
-            }
-            QFrame:hover {
-                border: 1px solid #73ad7d;
-                background-color: #f7fbf5;
-            }
-            QLabel {
-                background-color: transparent;
-                border: None;
-            }
-            QLabel:hover {
-                border: None;
-                background-color: transparent;
-            }
-            QPushButton {
-                background-color: #e7f1e4;
-                border: None;
-                border-radius: 10px;
-                padding: 12px 5px;
-                color: #4d6752;
-                border: 1px solid #cddfc8;
-            }
-            QPushButton:hover {
-                background-color: #dbe8d7;
-            }
-        """)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -299,95 +261,16 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
         self.logs_layout_text.setSpacing(12)
         # 将布局应用到滚动区域的内容部件
         self.scrollAreaWidgetContents.setLayout(self.logs_layout_text)
+        self._apply_styles()
         #滚动条样式
         self._apply_styles()
-        self.scrollArea.setStyleSheet("""
-                QScrollArea{
-        border: none;
-        background-color: transparent;
-        }
-        QScrollBar:vertical {
-        border: none;
-        background: transparent;
-        width: 12px;
-        margin: 8px 4px 8px 0;
-        }
-        QScrollBar::handle:vertical {
-        background: rgba(110, 156, 116, 0.6);
-        min-height: 28px;
-        border-radius: 6px;
-        border: none;
-        }
-        QScrollBar::add-line:vertical {
-        border: 0px solid grey;
-        background: #32CC99;
-        height: 0px;
-        subcontrol-position: bottom;
-        subcontrol-origin: margin;
-        }
-        QScrollBar::sub-line:vertical {
-        border: 0px solid grey;
-        background: #32CC99;
-        height: 0px;
-        subcontrol-position: top;
-        subcontrol-origin: margin;
-        }
-        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-        background: none;
-        width: 0px;
-        height: 0px;
-        }
-        """
-        )
         # 加载已保存的日志数据
         self.load_data()
         # 连接添加按钮的点击事件到add_log方法
         _=self.pushButtonAdd.clicked.connect(self.add_log)
 
     def _apply_styles(self) -> None:
-        self.setStyleSheet(
-            """
-            QWidget#thoughtJournalWindow {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 1, y2: 1,
-                    stop: 0 #eef4ee,
-                    stop: 0.45 #f6f5ef,
-                    stop: 1 #e6efe7
-                );
-                font-family: "Microsoft YaHei";
-                color: #24362a;
-            }
-            QLabel#label {
-                background: qlineargradient(
-                    x1: 0, y1: 0, x2: 1, y2: 1,
-                    stop: 0 #5ba76c,
-                    stop: 1 #408f57
-                );
-                color: white;
-                border-radius: 18px;
-                padding: 14px 18px;
-                font-size: 22px;
-                font-weight: 700;
-                margin-bottom: 6px;
-            }
-            QWidget#widget {
-                background-color: rgba(255, 255, 255, 0.74);
-                border: 1px solid #d8e5d4;
-                border-radius: 20px;
-            }
-            QPushButton#pushButtonAdd {
-                background-color: #4f9c61;
-                color: white;
-                border: none;
-                border-radius: 14px;
-                padding: 14px 18px;
-                min-width: 118px;
-            }
-            QPushButton#pushButtonAdd:hover {
-                background-color: #458c56;
-            }
-            """
-        )
+        self.setStyleSheet(load_stylesheet("styles/thought_journal.qss"))
 
 
     def load_data(self):
@@ -419,7 +302,7 @@ class ThoughtJournalWindow(QWidget, Ui_Form):
         else:
             labelNoLogs=QLabel("还没有日志")
             labelNoLogs.setAlignment(Qt.AlignCenter)
-            labelNoLogs.setStyleSheet("font-size: 16px; color: #999;")
+            labelNoLogs.setProperty("role", "empty-state")
             self.logs_layout_text.addWidget(labelNoLogs)
 
     def del_log(self,timestamp):

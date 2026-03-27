@@ -1,0 +1,22 @@
+{
+	"name": "custom-theme",
+	"displayName": "Custom Theme",
+	"description": "Custom dark theme based on provided theme.json",
+	"version": "1.0.0",
+	"publisher": "burns-tools",
+	"engines": {
+		"vscode": "^1.75.0"
+	},
+	"categories": [
+		"Themes"
+	],
+	"contributes": {
+		"themes": [
+			{
+				"label": "Custom Theme",
+				"uiTheme": "vs-dark",
+				"path": "./themes/custom-theme.json"
+			}
+		]
+	}
+}

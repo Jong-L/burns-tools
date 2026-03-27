@@ -1,1 +1,4 @@
 PySide6>=6.0.0
+matplotlib>=3.5.0
+zhdate>=0.1.0
+chinese_calendar>=1.8.0

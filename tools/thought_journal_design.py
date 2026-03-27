@@ -56,16 +56,6 @@ class Ui_Form(object):
         font1.setPointSize(12)
         self.pushButtonAdd.setFont(font1)
         self.pushButtonAdd.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.pushButtonAdd.setStyleSheet(u"            QPushButton {\n"
-"                background-color: #3498db;\n"
-"                color: white;\n"
-"                border: none;\n"
-"                border-radius: 8px;\n"
-"                padding: 15px;\n"
-"            }\n"
-"            QPushButton:hover {\n"
-"                background-color: #2980b9;\n"
-"            }")
 
         self.horizontalLayout.addWidget(self.pushButtonAdd)
 
